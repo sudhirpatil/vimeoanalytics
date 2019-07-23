@@ -13,36 +13,36 @@ import java.util.function.Consumer;
  */
 public class Runner {
 
-    private static final String WEB_CLIENT_EXAMPLES_DIR = "web-client-examples";
-    private static final String WEB_CLIENT_EXAMPLES_JAVA_DIR = WEB_CLIENT_EXAMPLES_DIR + "/src/main/java/";
-    private static final String WEB_CLIENT_EXAMPLES_JS_DIR = WEB_CLIENT_EXAMPLES_DIR + "/src/main/js/";
-    private static final String WEB_CLIENT_EXAMPLES_GROOVY_DIR = WEB_CLIENT_EXAMPLES_DIR + "/src/main/groovy/";
-    private static final String WEB_CLIENT_EXAMPLES_RUBY_DIR = WEB_CLIENT_EXAMPLES_DIR + "/src/main/ruby/";
+    private static final String DIR = ".";
+    private static final String JAVA_DIR = DIR + "/src/main/java/";
+    private static final String JS_DIR = DIR + "/src/main/js/";
+    private static final String GROOVY_DIR = DIR + "/src/main/groovy/";
+    private static final String RUBY_DIR = DIR + "/src/main/ruby/";
 
     public static void runExample(Class clazz) {
-        runExample(WEB_CLIENT_EXAMPLES_JAVA_DIR, clazz, new VertxOptions().setClustered(false), null);
+        runExample(JAVA_DIR, clazz, new VertxOptions().setClustered(false), null);
     }
 
     public static void runExample(Class clazz, DeploymentOptions options) {
-        runExample(WEB_CLIENT_EXAMPLES_JAVA_DIR, clazz, new VertxOptions().setClustered(false), options);
+        runExample(JAVA_DIR, clazz, new VertxOptions().setClustered(false), options);
     }
 
     // JavaScript examples
 
     public static void runJSExample(String scriptName) {
-        runScriptExample(WEB_CLIENT_EXAMPLES_JS_DIR, scriptName, new VertxOptions().setClustered(false));
+        runScriptExample(JS_DIR, scriptName, new VertxOptions().setClustered(false));
     }
 
     // Groovy examples
 
     public static void runGroovyExample(String scriptName) {
-        runScriptExample(WEB_CLIENT_EXAMPLES_GROOVY_DIR, scriptName, new VertxOptions().setClustered(false));
+        runScriptExample(GROOVY_DIR, scriptName, new VertxOptions().setClustered(false));
     }
 
     // Ruby examples
 
     public static void runRubyExample(String scriptName) {
-        runScriptExample(WEB_CLIENT_EXAMPLES_RUBY_DIR, scriptName, new VertxOptions().setClustered(false));
+        runScriptExample(RUBY_DIR, scriptName, new VertxOptions().setClustered(false));
     }
 
     public static void runExample(String exampleDir, Class clazz, VertxOptions options, DeploymentOptions

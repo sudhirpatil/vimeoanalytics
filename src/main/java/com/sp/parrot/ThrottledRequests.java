@@ -19,9 +19,9 @@ import java.util.concurrent.atomic.AtomicLong;
 
 
 public class ThrottledRequests{
+    private static final Logger log = LogManager.getLogger(ThrottledRequests.class);
 
     private static final int RATE_LIMIT_WINDOW_SIZE = 60000;
-    private static final Logger log = LogManager.getLogger(VimeoFetcher.class);
     private final BlockingQueue<RequestContext> queue = new LinkedBlockingQueue<>();
     private final AtomicLong executorId = new AtomicLong(0);
     private final AtomicLong actualDelay = new AtomicLong(100);
@@ -38,6 +38,7 @@ public class ThrottledRequests{
     public Future<Buffer> execute(HttpRequest<Buffer> request) {
         try {
             Future<Buffer> future = Future.future();
+            log.info("adding request to queue");
             queue.put(new RequestContext(request, future));
             return future;
         } catch (Exception e) {
@@ -70,9 +71,11 @@ public class ThrottledRequests{
             RequestContext context = queue.poll();
             if (context != null) {
                 HttpRequest<Buffer> request = context.request;
+                log.info("executor() calling request.send");
 
                 request.send(response -> {
-                    context.future.complete();
+                    log.info("executor() response: {}");
+                    context.future.complete(response.result().bodyAsBuffer());
                     checkAndUpdateRateLimit(response.result());
                 });
             }
@@ -86,6 +89,7 @@ public class ThrottledRequests{
             .map(requestsPerMinute -> RATE_LIMIT_WINDOW_SIZE / requestsPerMinute)
             .ifPresent(throttleDelay -> {
                 if (throttleDelay != actualDelay.getAndSet(throttleDelay)) {
+                    log.info("Periodic  Scheduler with Delay : {}", throttleDelay);
                     vertx.cancelTimer(executorId.get());
                     long id = vertx.setPeriodic(throttleDelay, executor());
                     executorId.set(id);

@@ -1,0 +1,7 @@
+{
+  "username":"parrotplay",
+  "password":"playp3n",
+  "database":"parrotplay",
+  "port":3306,
+  "host":"parrot-dev-combined-cluster-1.cluster-cnhweqsnlq6l.us-east-1.rds.amazonaws.com"
+}

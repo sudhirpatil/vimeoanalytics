@@ -46,24 +46,6 @@ public class ThrottledRequests{
         }
     }
 
-//    private Handler<Long> executorOld() {
-//        log.info("Instancing new request executor with throttled delay of {} ms", actualDelay.get());
-//        return timerId -> {
-//            RequestContext context = queue.poll();
-//            if (context != null) {
-//                Request inputRequest = context.request;
-//                log.info("Send request: {} {}", inputRequest.method(), inputRequest.uri());
-//                http.request(inputRequest.method(), inputRequest.options())
-//                        .putHeader("User-Agent", "Tradegs/0.1")
-//                        .setFollowRedirects(true)
-//                        .handler(response -> {
-//                            response.bodyHandler(context.future::complete);
-//                            checkAndUpdateRateLimit(response);
-//                        })
-//                        .end();
-//            }
-//        };
-//    }
 
     private Handler<Long> executor() {
         log.info("Instancing new request executor with throttled delay of {} ms", actualDelay.get());
@@ -71,10 +53,11 @@ public class ThrottledRequests{
             RequestContext context = queue.poll();
             if (context != null) {
                 HttpRequest<Buffer> request = context.request;
-                log.info("executor() calling request.send");
+                String queryTerm = request.queryParams().get("query");
+                log.info("Got request from queue, calling request.send for: {}", queryTerm);
 
                 request.send(response -> {
-                    log.info("executor() response: {}");
+                    log.info("executor() response for : {}", queryTerm);
                     context.future.complete(response.result().bodyAsBuffer());
                     checkAndUpdateRateLimit(response.result());
                 });

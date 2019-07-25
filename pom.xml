@@ -7,6 +7,7 @@
     <groupId>com.sp</groupId>
     <artifactId>parrot</artifactId>
     <version>1.0</version>
+    <url>http://maven.apache.org</url>
 
     <properties>
         <vertx.version>3.7.1</vertx.version>
@@ -14,6 +15,18 @@
 
         <!--<vertx.verticle>io.vertx.intro.first.MyFirstVerticle</vertx.verticle>-->
     </properties>
+
+    <!--<dependencyManagement>-->
+        <!--<dependencies>-->
+            <!--<dependency>-->
+                <!--<groupId>com.amazonaws</groupId>-->
+                <!--<artifactId>aws-java-sdk-bom</artifactId>-->
+                <!--<version>2.7.9</version>-->
+                <!--<type>pom</type>-->
+                <!--<scope>import</scope>-->
+            <!--</dependency>-->
+        <!--</dependencies>-->
+    <!--</dependencyManagement>-->
 
     <dependencies>
         <dependency>
@@ -46,6 +59,18 @@
             <artifactId>vertx-jdbc-client</artifactId>
             <version>${vertx.version}</version>
         </dependency>
+
+        <!--<dependency>-->
+            <!--<groupId>com.amazonaws</groupId>-->
+            <!--<artifactId>aws-java-sdk-dynamodb</artifactId>-->
+            <!--<version>2.7.9</version>-->
+        <!--</dependency>-->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>dynamodb</artifactId>
+            <version>2.7.10</version>
+        </dependency>
+
 
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
@@ -118,4 +143,35 @@
 
         <!-- to build fat jar https://github.com/vert-x3/vertx-examples/blob/master/maven-simplest/pom.xml -->
     </build>
+
+    <repositories>
+        <repository>
+            <id>central</id>
+            <name>Central Repository</name>
+            <url>https://repo.maven.apache.org/maven2</url>
+            <layout>default</layout>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+        <repository>
+            <id>spring-milestone-repo</id>
+            <url>http://repo.spring.io/milestone/</url>
+        </repository>
+    </repositories>
+    <pluginRepositories>
+        <pluginRepository>
+            <id>central</id>
+            <name>Central Repository</name>
+            <url>https://repo.maven.apache.org/maven2</url>
+            <layout>default</layout>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+            <releases>
+                <updatePolicy>never</updatePolicy>
+            </releases>
+        </pluginRepository>
+    </pluginRepositories>
+
 </project>

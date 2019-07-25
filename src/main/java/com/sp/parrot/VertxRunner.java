@@ -55,18 +55,6 @@ public class VertxRunner extends AbstractVerticle {
                 }
                 vertx.close();
             });
-
-
-//        searchVideos(executor, "spider", 5)
-//            .compose(this::getVideoMetadata)
-//            .setHandler(async -> {
-//                if(async.succeeded()){
-//                    log.info("VideoResponse : {}", async.result());
-//                }else {
-//                    async.cause().printStackTrace();
-//                }
-//                vertx.close();
-//            });
     }
 
     private CompositeFuture searchMovies(List<JsonObject> movieList) {

@@ -1,16 +1,13 @@
-package com.sp.parrot;
+package com.sp.parrot.stores;
 
 import com.hubrick.vertx.s3.client.S3Client;
 import com.hubrick.vertx.s3.client.S3ClientOptions;
-import com.hubrick.vertx.s3.model.request.GetBucketRequest;
-import com.hubrick.vertx.s3.model.request.GetObjectRequest;
 import com.hubrick.vertx.s3.model.request.PutObjectRequest;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
-import io.vertx.core.streams.ReadStream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -23,20 +20,22 @@ public class S3ClientAsync {
     Vertx vertx;
     S3ClientOptions clientOptions;
     S3Client s3Client;
+    JsonObject config;
 
-    S3ClientAsync(Vertx vertx){
+    public S3ClientAsync(Vertx vertx, JsonObject config){
         this.vertx = vertx;
+        this.config = config;
 
         S3ClientOptions clientOptions = new S3ClientOptions()
-                .setAwsRegion("us-east-1")
+                .setAwsRegion(config.getString("awsRegion"))
                 .setAwsServiceName("s3")
-                .setAwsAccessKey("AKIA6MA3ZTWLWPOSUX7S")
-                .setAwsSecretKey("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");
+                .setAwsAccessKey(config.getString("awsAccess"))
+                .setAwsSecretKey(config.getString("awsSecret"));
         s3Client = new S3Client(vertx, clientOptions);
     }
 
-    public Future<Void> save(String bucket, String key, List<Buffer> listBuffer){
-        Future<Void> future = Future.future();
+    public Future<List<Buffer>> save(String bucket, String key, List<Buffer> listBuffer){
+        Future<List<Buffer>> future = Future.future();
 
         JsonArray jsonArray = new JsonArray();
         for(Buffer buffer: listBuffer){
@@ -44,13 +43,11 @@ public class S3ClientAsync {
         }
 
         s3Client.putObject(
-//                "techtasks/spe-sudhir",
-//                "testnew",
             bucket,
             key,
             new PutObjectRequest(jsonArray.toBuffer()).withContentType("application/json"),
             response -> {
-                future.complete();
+                future.complete(listBuffer);
                 log.info("Saved to S3, key: {}", key);
             },
             throwable -> future.fail(throwable)

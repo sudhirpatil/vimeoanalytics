@@ -1,5 +1,6 @@
-package com.sp.parrot;
+package com.sp.parrot.others;
 
+import com.sp.parrot.vertx.Runner;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
 import io.vertx.core.buffer.Buffer;
@@ -26,7 +27,7 @@ public class VimeoFetcher extends AbstractVerticle {
     // Convenience method so you can run it in your IDE
     public static void main(String[] args) {
         accessToken = "87f6e24bf44bb198227ca7a176d90d6b";
-        Runner.runExample(VimeoFetcher.class);
+        Runner.run(VimeoFetcher.class);
     }
 
     @Override

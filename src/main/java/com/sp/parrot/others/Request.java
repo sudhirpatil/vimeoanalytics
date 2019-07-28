@@ -1,4 +1,4 @@
-package com.sp.parrot;
+package com.sp.parrot.others;
 
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.RequestOptions;

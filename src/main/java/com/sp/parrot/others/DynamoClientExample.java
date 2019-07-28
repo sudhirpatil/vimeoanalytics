@@ -1,59 +1,25 @@
-package com.sp.parrot;
+package com.sp.parrot.others;
 
-import io.vertx.config.ConfigRetriever;
-import io.vertx.config.ConfigRetrieverOptions;
-import io.vertx.config.ConfigStoreOptions;
-import io.vertx.core.Future;
+import com.sp.parrot.stores.DynamoClient;
 import io.vertx.core.Vertx;
-import io.vertx.core.WorkerExecutor;
 import io.vertx.core.json.JsonObject;
-import io.vertx.ext.asyncsql.MySQLClient;
-import io.vertx.ext.sql.ResultSet;
-import io.vertx.ext.sql.SQLClient;
-import io.vertx.ext.sql.SQLConnection;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
-import software.amazon.awssdk.services.dynamodb.model.*;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+import software.amazon.awssdk.services.dynamodb.model.*;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-
 import java.util.List;
 import java.util.Map;
 
-import software.amazon.awssdk.services.dynamodb.model.DynamoDbException;
-import software.amazon.awssdk.regions.Region;
-
-public class DynamoClient {
-    private static final Logger log = LogManager.getLogger(DynamoClient.class);
+public class DynamoClientExample {
+    private static final Logger log = LogManager.getLogger(DynamoClientExample.class);
 
     Vertx vertx;
-    DynamoDbClient ddb;
 
-    DynamoClient(Vertx vertx){
-        this.vertx = vertx;
-        ddb = DynamoDbClient.builder().build();
-    }
 
-    public Future<Void> saveMovieAsync(String tableName, JsonObject movieJson){
-        Future<Void> future = Future.future();
-        WorkerExecutor executor = vertx.createSharedWorkerExecutor("my-worker-pool");
-        executor.executeBlocking(
-            promise -> { // blocking API handler
-                int status = saveMovie(tableName, movieJson);
-                promise.complete(status);
-            }
-            , false // Run parallel, ignore sequence
-            , res -> { // Response handler
-                System.out.println("The result is: " + res.result());
-                future.complete();
-        });
-        return future;
-    }
-
-    public int saveMovie(String tableName, JsonObject movieJson){
+    public  static void saveMovie(String tableName, JsonObject movieJson){
         Map<String, Object> movieMap = movieJson.getMap();
 
         Map<String,AttributeValue> itemValues = new HashMap<String,AttributeValue>();
@@ -61,28 +27,103 @@ public class DynamoClient {
             itemValues.put(movie.getKey(), AttributeValue.builder().s(movie.getValue().toString()).build());
         }
 
+        DynamoDbClient ddb = DynamoDbClient.create();
         PutItemRequest request = PutItemRequest.builder()
                 .tableName(tableName)
                 .item(itemValues)
                 .build();
 
         try {
-            PutItemResponse response = ddb.putItem(request);
-            log.info("Saved to DynamoDb, title: {}", itemValues.get("title"));
-            return response.sdkHttpResponse().statusCode();
+            ddb.putItem(request);
         } catch (ResourceNotFoundException e) {
             log.error("Error: The table \"{}\" can't be found.\n", tableName);
             log.error("Be sure that it exists and that you've typed its name correctly!");
+            System.exit(1);
         } catch (DynamoDbException e) {
             log.error(e.getMessage());
+            System.exit(1);
         }
         // snippet-end:[dynamodb.java2.put_item.main]
-        return 500;
+        log.info("Save Done!");
+        
+    }
+    
+    public  static void putItem(String[] args){
+        final String USAGE = "\n" +
+                "Usage:\n" +
+                "    PutItem <table> <name> [field=value ...]\n\n" +
+                "Where:\n" +
+                "    table    - the table to put the item in.\n" +
+                "    name     - a name to add to the table. If the name already\n" +
+                "               exists, its entry will be updated.\n" +
+                "Additional fields can be added by appending them to the end of the\n" +
+                "input.\n\n" +
+                "Example:\n" +
+                "    PutItem Cellists Pau Language=ca Born=1876\n";
+
+        if (args.length < 2) {
+            log.info(USAGE);
+            System.exit(1);
+        }
+
+        String tableName = args[0];
+        String title = args[1];
+        ArrayList<String[]> extra_fields = new ArrayList<String[]>();
+
+        // any additional args (fields to add to database)?
+        for (int x = 2; x < args.length; x++) {
+            String[] fields = args[x].split("=", 2);
+            if (fields.length == 2) {
+                extra_fields.add(fields);
+            } else {
+                log.info("Invalid argument: {}\n", args[x]);
+                log.info(USAGE);
+                System.exit(1);
+            }
+        }
+
+        if (extra_fields.size() > 0) {
+            log.info("Additional fields:");
+            for (String[] field : extra_fields) {
+                log.info("  {}: {}\n", field[0], field[1]);
+            }
+        }
+
+        // snippet-start:[dynamodb.java2.put_item.main]
+        HashMap<String,AttributeValue> item_values =
+                new HashMap<String,AttributeValue>();
+
+        log.info("Adding \"{}\" to \"{}\"", title, tableName);
+        item_values.put("title", AttributeValue.builder().s(title).build());
+
+        for (String[] field : extra_fields) {
+            item_values.put(field[0], AttributeValue.builder().s(field[1]).build());
+        }
+
+        DynamoDbClient ddb = DynamoDbClient.create();
+        PutItemRequest request = PutItemRequest.builder()
+                .tableName(tableName)
+                .item(item_values)
+                .build();
+
+        try {
+            ddb.putItem(request);
+        } catch (ResourceNotFoundException e) {
+            log.error("Error: The table \"{}\" can't be found.\n", tableName);
+            log.error("Be sure that it exists and that you've typed its name correctly!");
+            System.exit(1);
+        } catch (DynamoDbException e) {
+            log.error(e.getMessage());
+            System.exit(1);
+        }
+        // snippet-end:[dynamodb.java2.put_item.main]
+        log.info("Done!");
     }
 
     public void listTables(){
         log.info("Your DynamoDB tables:\n");
 
+        DynamoDbClient ddb = DynamoDbClient.builder().build();
         boolean more_tables = true;
         String last_name = null;
 
@@ -123,10 +164,9 @@ public class DynamoClient {
         log.info("\nDone!");
     }
 
-
-    
     public void query(String[] args)
     {
+        DynamoDbClient ddb = DynamoDbClient.builder().build();
         final String USAGE = "\n" +
                 "Usage:\n" +
                 "    <table> <partitionkey> <partitionkeyvalue>\n\n" +
@@ -182,12 +222,13 @@ public class DynamoClient {
     }
 
 
+
     public static void main(String[] args)
     {
-        DynamoClient dynamoClient = new DynamoClient(null);
+//        DynamoClient dynamoClient = new DynamoClient(null);
 
         String[] queryArgs = {"spe-sudhir", "title", "mortal engines"};
-        dynamoClient.query(queryArgs);
+//        dynamoClient.query(queryArgs);
 
 //        JsonObject movieJson = new JsonObject()
 //                .put("title", "title1")

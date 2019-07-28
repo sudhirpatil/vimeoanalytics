@@ -1,4 +1,4 @@
-package com.sp.parrot;
+package com.sp.parrot.others;
 
 import com.clickntap.vimeo.Vimeo;
 import com.clickntap.vimeo.VimeoException;

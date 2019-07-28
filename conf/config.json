@@ -3,5 +3,12 @@
   "password":"playp3n",
   "database":"parrotplay",
   "port":3306,
-  "host":"parrot-dev-combined-cluster-1.cluster-cnhweqsnlq6l.us-east-1.rds.amazonaws.com"
+  "host":"parrot-dev-combined-cluster-1.cluster-cnhweqsnlq6l.us-east-1.rds.amazonaws.com",
+  "accessToken": "87f6e24bf44bb198227ca7a176d90d6b",
+  "resultsPerPage": "25",
+  "awsRegion": "us-east-1",
+  "awsAccess" : "AKIA6MA3ZTWLWPOSUX7S",
+  "awsSecret" : "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",
+  "awss3bucket": "techtasks/spe-sudhir",
+  "dynamoTable": "spe-sudhir"
 }

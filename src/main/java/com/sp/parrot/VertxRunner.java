@@ -1,43 +1,55 @@
 package com.sp.parrot;
 
+import com.sp.parrot.api.VimeoApiClient;
+import com.sp.parrot.stores.DynamoClient;
+import com.sp.parrot.stores.JdbcClient;
+import com.sp.parrot.stores.S3ClientAsync;
+import com.sp.parrot.utils.Utils;
+import com.sp.parrot.vertx.Runner;
+import com.sp.parrot.vimeo.VimeoClient;
 import io.vertx.core.*;
-import io.vertx.core.buffer.Buffer;
-import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
-import io.vertx.ext.web.client.WebClient;
-import io.vertx.ext.web.client.WebClientOptions;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 public class VertxRunner extends AbstractVerticle {
     private static final Logger log = LogManager.getLogger(VertxRunner.class);
 
-    ThrottledRequests executor;
-    MoviesStore moviesStore;
+    JsonObject config;
+    VimeoApiClient executor;
+    JdbcClient jdbcClient;
     VimeoClient vimeoClient;
     DynamoClient dynamoClient;
     S3ClientAsync s3ClientAsync;
 
     // Convenience method so you can run it in your IDE
     public static void main(String[] args) {
-        // TODO:: implement fetching https://github.com/vert-x3/vertx-examples/blob/master/web-client-examples/src/main/java/io/vertx/example/webclient/oauth/TwitterOAuthExample.java
-        Runner.runExample(VertxRunner.class);
+        // TODO:: implement access token fetching
+        Runner.run(VertxRunner.class);
     }
 
-    private void initialize() {
-        executor = new ThrottledRequests(vertx);
-        moviesStore = new MoviesStore(vertx);
-        vimeoClient = new VimeoClient(vertx);
-        dynamoClient = new DynamoClient(vertx);
-        s3ClientAsync = new S3ClientAsync(vertx);
+    private Future<Void> initialize() {
+        Future<Void> future = Future.future();
+        Utils.getConfig(vertx).setHandler(async -> {
+           if(async.succeeded()){
+               this.config = async.result();
+
+               executor = new VimeoApiClient(vertx, config);
+               jdbcClient = new JdbcClient(vertx, config);
+               vimeoClient = new VimeoClient(vertx, config);
+               dynamoClient = new DynamoClient(vertx, config);
+               s3ClientAsync = new S3ClientAsync(vertx, config);
+               future.complete();
+           }else {
+                log.error("Failed to read configuration file : {}", async.cause());
+                future.fail(async.cause());
+           }
+        });
+        return future;
     }
 
     @Override
@@ -47,11 +59,13 @@ public class VertxRunner extends AbstractVerticle {
             // Combine comments, likes , views for each movie
             // Save each movie result to dynamo with movie-id & current hour as key.
             // Save search results to s3
-        initialize();
 
-        moviesStore
-            .getMovies()
-            .compose(this::searchMovies)
+//        vertx.setPeriodic(actualDelay.get(), executor());
+
+        //TODO:: schedule search every hour
+        initialize()
+            .compose(config -> jdbcClient.getMovies())
+            .compose(this::searchNSaveMovies)
             .setHandler(async -> {
                 if(async.succeeded()){
                     log.info("Completed searching and saving, movies agg metadata : {}", async.result());
@@ -63,7 +77,7 @@ public class VertxRunner extends AbstractVerticle {
             });
     }
 
-    private CompositeFuture searchMovies(List<JsonObject> movieList) {
+    private CompositeFuture searchNSaveMovies(List<JsonObject> movieList) {
         /**
          For each movie
             get future of videos
@@ -74,29 +88,17 @@ public class VertxRunner extends AbstractVerticle {
          create composite future
          */
         List<Future> futureList = movieList.stream()
-                .flatMap(movie -> {
+                .map(movie -> {
                     log.info("movie: {}", movie.toString());
                     String title = movie.getString("movie_title");
-                    Future<List<Buffer>> videosJson = vimeoClient
-                            .searchVideos(executor, title, 5);
-
-                    Future<Void> dynamoSaveFut =
-                    videosJson.compose(videos -> vimeoClient.getVideoMetadata(videos, title))
-                            .compose(videoMeta -> dynamoClient.saveMovieAsync("spe-sudhir", videoMeta));
-
                     String s3Key = movie.getString("movie_id") + "_" + Utils.getDateTimeKey();
-                    Future<Void> saveS3Fut = videosJson.compose(videos -> s3ClientAsync.save("techtasks/spe-sudhir", s3Key, videos));
 
-//                            .compose(videoMeta -> dynamoClient.saveMovieAsync("spe-sudhir", videoMeta));
-//                            .setHandler(async -> {
-//                                if(async.succeeded()){
-//                                    log.info("Movie metadata for {} : {}", movie.getString("movie_id"), async.result());
-//                                    metaFuture.complete();
-//                                }else {
-//                                    metaFuture.fail(async.cause());
-//                                }
-//                            });
-                    return Arrays.asList(dynamoSaveFut, saveS3Fut).stream();
+                    Future<Void> videosJson = vimeoClient
+                            .searchVideos(executor, title, 5)
+                            .compose(videos -> s3ClientAsync.save(config.getString("awss3bucket"), s3Key, videos))
+                            .compose(videos -> vimeoClient.getVideoMetadata(videos, title))
+                            .compose(videoMeta -> dynamoClient.saveMovieAsync(config.getString("dynamoTable"), videoMeta));
+                    return videosJson;
                 })
                 .collect(Collectors.toList());
 

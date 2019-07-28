@@ -1,4 +1,4 @@
-package com.sp.parrot;
+package com.sp.parrot.stores;
 
 import io.vertx.config.ConfigRetriever;
 import io.vertx.config.ConfigRetrieverOptions;
@@ -15,13 +15,15 @@ import org.apache.logging.log4j.Logger;
 
 import java.util.List;
 
-public class MoviesStore {
-    private static final Logger log = LogManager.getLogger(MoviesStore.class);
+public class JdbcClient {
+    private static final Logger log = LogManager.getLogger(JdbcClient.class);
 
     Vertx vertx;
+    JsonObject config;
 
-    MoviesStore(Vertx vertx){
+    public JdbcClient(Vertx vertx, JsonObject config){
         this.vertx = vertx;
+        this.config = config;
     }
     /**
      * Fetch movies from mysql

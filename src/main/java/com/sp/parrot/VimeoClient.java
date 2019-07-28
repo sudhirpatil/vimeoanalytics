@@ -16,6 +16,9 @@ import io.vertx.ext.web.client.WebClientOptions;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -34,57 +37,6 @@ public class VimeoClient {
                 new WebClientOptions()
                         .setSsl(true)
         );
-    }
-
-    public Future<JsonObject> getVideoMetadata(List<Buffer> listBuffer) {
-        Future<JsonObject> future = Future.future();
-
-        log.info("extracting video metadata");
-        int totalComments = 0, totalLikes =0, totalViews =0;
-        for(Buffer buffer: listBuffer){
-            JsonArray jsonArray = buffer.toJsonObject().getJsonArray("data");
-            if(jsonArray == null) continue;
-
-            for(Object json : jsonArray){
-                int comments = 0, likes =0, views =0;
-                JsonObject videoData = (JsonObject)json;
-
-                if(videoData.containsKey("metadata") && videoData.getJsonObject("metadata").containsKey("connections")) {
-                    JsonObject connections = videoData.getJsonObject("metadata").getJsonObject("connections");
-                    if(connections.containsKey("comments") && connections.getJsonObject("comments").containsKey("total")) {
-                        comments = connections.getJsonObject("comments").getInteger("total");
-                        totalComments += comments;
-                    }
-
-                    if(connections.containsKey("likes")  && connections.getJsonObject("likes").containsKey("total")){
-                        likes = connections.getJsonObject("likes").getInteger("total");
-                        totalLikes += likes;
-                    }
-
-                    if(videoData.containsKey("stats") && connections.getJsonObject("stats") != null && connections.getJsonObject("stats").containsKey("plays")){
-                        String viewsStr = connections.getJsonObject("stats").getString("plays");
-                        log.info("viewsStr : {}", viewsStr);
-                        if(viewsStr != null) {
-                            views = Integer.valueOf(viewsStr);
-                            totalViews += views;
-                        }
-                    }
-
-                    String uri = videoData.getString("uri");
-                    log.info("uri : {}, totalComments : {} , totalLikes : {}, views : {}", uri, comments, likes, views);
-                }
-            }
-        }
-
-        JsonObject videoStat = new JsonObject()
-                .put("totalComments", totalComments)
-                .put("totalLikes", totalLikes)
-                .put("totalViews", totalViews);
-//                .put("movieId", movieId)
-//                .put("queryTerm", queryTerm);
-//                log.info("video stat json : {}", videoStat);
-        future.complete(videoStat);
-        return future;
     }
 
     public Future<List<Buffer>> searchVideos(ThrottledRequests executor, String movieTitle, int totalPages ){
@@ -127,9 +79,63 @@ public class VimeoClient {
         return result;
     }
 
+    public Future<JsonObject> getVideoMetadata(List<Buffer> listBuffer, String title) {
+        Future<JsonObject> future = Future.future();
+
+        log.info("extracting video metadata for : {}", title);
+        int totalComments = 0, totalLikes =0, totalViews =0;
+        for(Buffer buffer: listBuffer){
+            JsonArray jsonArray = buffer.toJsonObject().getJsonArray("data");
+            if(jsonArray == null) continue;
+
+            for(Object json : jsonArray){
+                int comments = 0, likes =0, views =0;
+                JsonObject videoData = (JsonObject)json;
+
+                if(videoData.containsKey("metadata") && videoData.getJsonObject("metadata").containsKey("connections")) {
+                    JsonObject connections = videoData.getJsonObject("metadata").getJsonObject("connections");
+                    if(connections.containsKey("comments") && connections.getJsonObject("comments").containsKey("total")) {
+                        comments = connections.getJsonObject("comments").getInteger("total");
+                        totalComments += comments;
+                    }
+
+                    if(connections.containsKey("likes")  && connections.getJsonObject("likes").containsKey("total")){
+                        likes = connections.getJsonObject("likes").getInteger("total");
+                        totalLikes += likes;
+                    }
+
+                    if(videoData.containsKey("stats") && connections.getJsonObject("stats") != null && connections.getJsonObject("stats").containsKey("plays")){
+                        String viewsStr = connections.getJsonObject("stats").getString("plays");
+                        log.debug("viewsStr : {}", viewsStr);
+                        if(viewsStr != null) {
+                            views = Integer.valueOf(viewsStr);
+                            totalViews += views;
+                        }
+                    }
+
+                    String uri = videoData.getString("uri");
+                    log.info("uri : {}, totalComments : {} , totalLikes : {}, views : {}", uri, comments, likes, views);
+                }
+            }
+        }
+
+
+        JsonObject videoStat = new JsonObject()
+                .put("title", title)
+                .put("totalComments", totalComments)
+                .put("totalLikes", totalLikes)
+                .put("totalViews", totalViews)
+                .put("timestamp", Utils.getDateTimeHour());
+//                .put("movieId", movieId)
+//                .put("queryTerm", queryTerm);
+//                log.info("video stat json : {}", videoStat);
+        future.complete(videoStat);
+        return future;
+    }
+
     // composite response handler to add all responses to request to Future<List>
     public Handler<AsyncResult<CompositeFuture>> joinFutures(Future<List<Buffer>> future) {
-        log.info("CompositeFuture async handler");
+        log.debug("CompositeFuture async handler");
         return async -> {
             if (async.succeeded()) {
                 CompositeFuture compositeFuture = async.result();

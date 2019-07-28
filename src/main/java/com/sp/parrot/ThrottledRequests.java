@@ -38,7 +38,7 @@ public class ThrottledRequests{
     public Future<Buffer> execute(HttpRequest<Buffer> request) {
         try {
             Future<Buffer> future = Future.future();
-            log.info("adding request to queue");
+            log.debug("adding request to queue");
             queue.put(new RequestContext(request, future));
             return future;
         } catch (Exception e) {
@@ -54,7 +54,7 @@ public class ThrottledRequests{
             if (context != null) {
                 HttpRequest<Buffer> request = context.request;
                 String queryTerm = request.queryParams().get("query");
-                log.info("Got request from queue, calling request.send for: {}", queryTerm);
+                log.debug("Got request from queue, calling request.send for: {}", queryTerm);
 
                 request.send(response -> {
                     log.info("executor() response for : {}", queryTerm);

@@ -11,6 +11,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -22,6 +23,8 @@ public class VertxRunner extends AbstractVerticle {
     ThrottledRequests executor;
     MoviesStore moviesStore;
     VimeoClient vimeoClient;
+    DynamoClient dynamoClient;
+    S3ClientAsync s3ClientAsync;
 
     // Convenience method so you can run it in your IDE
     public static void main(String[] args) {
@@ -33,6 +36,8 @@ public class VertxRunner extends AbstractVerticle {
         executor = new ThrottledRequests(vertx);
         moviesStore = new MoviesStore(vertx);
         vimeoClient = new VimeoClient(vertx);
+        dynamoClient = new DynamoClient(vertx);
+        s3ClientAsync = new S3ClientAsync(vertx);
     }
 
     @Override
@@ -49,8 +54,9 @@ public class VertxRunner extends AbstractVerticle {
             .compose(this::searchMovies)
             .setHandler(async -> {
                 if(async.succeeded()){
-                    log.info("movies agg metadata : {}", async.result());
+                    log.info("Completed searching and saving, movies agg metadata : {}", async.result());
                 }else {
+                    log.error("Failed to Search and save Movies");
                     async.cause().printStackTrace();
                 }
                 vertx.close();
@@ -67,21 +73,32 @@ public class VertxRunner extends AbstractVerticle {
          get list of futures with movie metadata
          create composite future
          */
-        List<Future> futureList = movieList.stream().map(movie -> {
-            Future<JsonObject> metaFuture = Future.future();
-            vimeoClient.searchVideos(executor, movie.getString("movie_title"), 5)
-                    .compose(vimeoClient::getVideoMetadata)
-                    .setHandler(async -> {
-                        if(async.succeeded()){
-                            log.info("Movie metadata for {} : {}", movie.getString("movie_id"), async.result());
-                            metaFuture.complete(async.result());
-                        }else {
-                            metaFuture.fail(async.cause());
-                        }
-                    });
-            return metaFuture;
-        })
-        .collect(Collectors.toList());;
+        List<Future> futureList = movieList.stream()
+                .flatMap(movie -> {
+                    log.info("movie: {}", movie.toString());
+                    String title = movie.getString("movie_title");
+                    Future<List<Buffer>> videosJson = vimeoClient
+                            .searchVideos(executor, title, 5);
+
+                    Future<Void> dynamoSaveFut =
+                    videosJson.compose(videos -> vimeoClient.getVideoMetadata(videos, title))
+                            .compose(videoMeta -> dynamoClient.saveMovieAsync("spe-sudhir", videoMeta));
+
+                    String s3Key = movie.getString("movie_id") + "_" + Utils.getDateTimeKey();
+                    Future<Void> saveS3Fut = videosJson.compose(videos -> s3ClientAsync.save("techtasks/spe-sudhir", s3Key, videos));
+
+//                            .compose(videoMeta -> dynamoClient.saveMovieAsync("spe-sudhir", videoMeta));
+//                            .setHandler(async -> {
+//                                if(async.succeeded()){
+//                                    log.info("Movie metadata for {} : {}", movie.getString("movie_id"), async.result());
+//                                    metaFuture.complete();
+//                                }else {
+//                                    metaFuture.fail(async.cause());
+//                                }
+//                            });
+                    return Arrays.asList(dynamoSaveFut, saveS3Fut).stream();
+                })
+                .collect(Collectors.toList());
 
         return CompositeFuture
                 .all(futureList);
